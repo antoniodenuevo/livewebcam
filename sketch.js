@@ -7,10 +7,10 @@ function setup() {
   // Create a dropdown for selecting video input
   videoSelect = createSelect();
   videoSelect.position(10, 10);
-  videoSelect.option('Select camera');
+  videoSelect.option('Select camera'); // Placeholder for non-selection
   videoSelect.changed(changeCamera);
 
-  // List available media devices
+  // List available media devices and populate the dropdown
   navigator.mediaDevices.enumerateDevices()
     .then(devices => {
       devices.forEach(device => {
@@ -18,12 +18,6 @@ function setup() {
           videoSelect.option(device.label || `Camera ${videoSelect.child().length}`, device.deviceId);
         }
       });
-
-      // Automatically try to set up the first camera if one is available
-      if (videoSelect.child().length > 1) {
-        videoSelect.selected(videoSelect.child()[1].value);
-        setupCamera(videoSelect.value());
-      }
     })
     .catch(error => {
       console.error('Error listing devices:', error);
@@ -33,45 +27,44 @@ function setup() {
 function draw() {
   background(0);
   if (video) {
-    image(video, 0, 0, width, height);
+    image(video, 0, 0, width, height); // Draw the video to the canvas
   }
 }
 
 function setupCamera(deviceId) {
   if (video) {
-    video.remove(); // Remove the existing video if it exists
+    video.remove(); // Remove the existing video capture if it exists
   }
 
+  // Define constraints for the video stream
   let constraints = {
     video: {
-      deviceId: { exact: deviceId } // Specify the device ID
+      deviceId: { exact: deviceId }
     }
   };
 
-  function handleSuccess(stream) {
+  // Use p5's createCapture to handle the video stream
+  video = createCapture(constraints, function(stream) {
     console.log('Camera is ready.');
-    video = createCapture(stream);
     video.size(width, height);
-    video.hide();
-  }
+    video.hide(); // Hide the HTML element to only display video on canvas
+  });
 
-  function handleError(error) {
-    console.log('Error initializing the camera with constraints:', error);
-    // Fallback to any available video device
-    video = createCapture(VIDEO, () => {
-      console.log('Fallback camera is ready.');
-    });
-    video.size(width, height);
-    video.hide();
-  }
-
-  // Request camera access with the defined constraints
-  navigator.mediaDevices.getUserMedia(constraints).then(handleSuccess).catch(handleError);
+  video.on('error', function(err) {
+    console.error('Failed to get video:', err);
+    video = null; // Nullify video variable on error
+  });
 }
 
 function changeCamera() {
-  const deviceId = videoSelect.value();
-  if (deviceId) {
+  let deviceId = videoSelect.value();
+  if (deviceId !== 'Select camera') {
     setupCamera(deviceId);
+  } else {
+    if (video) {
+      video.remove(); // Remove the current video if 'Select camera' is chosen
+      video = null;
+    }
+    console.log('No camera selected');
   }
 }
